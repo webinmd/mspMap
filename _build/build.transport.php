@@ -21,9 +21,10 @@ $sources = array(
 	'data' => $root . '_build/data/',
 	'resolvers' => $root . '_build/resolvers/',
 	'source_assets' => array(
-		'components/minishop2/payment/mspmapmap.php'
+		'components/minishop2/payment/mspmap.php'
 	),
 	'source_core' => array(
+		'components/minishop2/custom/payment/lib/mspmap/MapPaymentAPI.php',
 		'components/minishop2/custom/payment/mspmap.class.php',
 		'components/minishop2/lexicon/en/msp.map.inc.php',
 		'components/minishop2/lexicon/ru/msp.map.inc.php'
