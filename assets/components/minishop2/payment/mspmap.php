@@ -14,15 +14,20 @@ if (!class_exists('mspMap')) {exit('Error: could not load payment class "mspMap"
 $context = '';
 $params = array();
 
-/* @var msPaymentInterface|mspMap $handler */
-$handler = new Robokassa($modx->newObject('msOrder'));
 
+$modx->log(modX::LOG_LEVEL_ERROR, 'mspMap request '.print_r($_REQUEST, true));
+
+/* @var msPaymentInterface|mspMap $handler */
+$handler = new mspMap($modx->newObject('msOrder'));
+
+
+/*
 if (!empty($_REQUEST['SignatureValue']) && !empty($_REQUEST['InvId']) && empty($_REQUEST['action'])) {
 	if ($order = $modx->getObject('msOrder', $_REQUEST['InvId'])) {
 		$handler->receive($order, $_REQUEST);
 	}
 	else {
-		$modx->log(modX::LOG_LEVEL_ERROR, '[miniShop2:mspMap] Could not retrieve order with id '.$_REQUEST['LMI_PAYMENT_NO']);
+		$modx->log(modX::LOG_LEVEL_ERROR, '[miniShop2:mspMap] Could not retrieve order '.print_r($_REQUEST, true));
 	}
 }
 
@@ -38,3 +43,4 @@ if ($id = $modx->getOption('ms2_payment_mspmap_failure_id', null, 0)) {
 
 $redirect = !empty($_REQUEST['action']) && $_REQUEST['action'] == 'success' ? $success : $failure;
 header('Location: ' . $redirect);
+*/

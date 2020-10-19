@@ -10,34 +10,28 @@ $settings = array();
 $tmp = array(
 	'gateway_url' => array(
 		'xtype' => 'textfield',
-		'value' => '',
-        'area' => 'mspmap_main',
+		'value' => ''
 	),
 	'key' => array(
 		'xtype' => 'textfield',
-		'value' => '',
-        'area' => 'mspmap_main',
+		'value' => ''
 	),
 	'pass' => array(
 		'xtype' => 'text-password',
-		'value' => '',
-        'area' => 'mspmap_main',
+		'value' => ''
 	),
 	'success_id' => array(
 		'xtype' => 'numberfield',
-		'value' => 0,
-        'area' => 'mspmap_main',
+		'value' => 0
 
 	),
 	'failure_id' => array(
 		'xtype' => 'numberfield',
-		'value' => 0,
-        'area' => 'mspmap_main',
+		'value' => 0
 	),
     'test_mode' => array(
         'xtype' => 'combo-boolean',
-        'value' => true,
-        'area' => 'mspmap_main',
+        'value' => true
     )
 );
 

@@ -18,54 +18,82 @@ class mspMap extends msPaymentHandler implements msPaymentInterface {
 		$paymentUrl = $siteUrl . substr($assetsUrl, 1) . 'payment/mspmap.php';
 
 		$this->config = array_merge(array(
-			'paymentUrl' => $paymentUrl
-			,'checkoutUrl' => $this->modx->getOption('ms2_payment_mspmap_url', null, 'https://merchant.roboxchange.com/Index.aspx', true)
-			,'login' => $this->modx->getOption('ms2_payment_mspmap_login')
-			,'pass' => $this->modx->getOption('ms2_payment_mspmap_pass1') 
-			,'json_response' => false
-		), $config);
+			 'paymentUrl' => $paymentUrl
+			,'gateway' => $this->modx->getOption('ms2_payment_mspmap_gateway_url')
+			,'key' => $this->modx->getOption('ms2_payment_mspmap_key')
+			,'pass' => $this->modx->getOption('ms2_payment_mspmap_pass') 
+			,'test' => $this->modx->getOption('ms2_payment_mspmap_pass') 
+			,'failId' => $this->modx->getOption('ms2_payment_mspmap_failure_id') 
+			,'successId' => $this->modx->getOption('ms2_payment_mspmap_success_id') 
+		), $config); 
+
+		$this->api = new MapPaymentAPI(
+			$this->config['gateway'],
+			$this->config['key'],
+			$this->config['password'],
+			$this->config['test']
+		);
+
 	}
 
 
 	/* @inheritdoc} */
 	public function send(msOrder $order) {
-		$link = $this->getPaymentLink($order);
 
+		$sessionId = $this->getSessionId($order);
+		$link = $this->getPaymentLink($sessionId);
 		return $this->success('', array('redirect' => $link));
+
 	}
 
 
-	public function getPaymentLink(msOrder $order) {
-		$id = $order->get('id');
-		$sum = number_format($order->get('cost'), 2, '.', '');
-		$request = array(
-			'url' => $this->config['checkoutUrl']
-			,'MrchLogin' => $this->config['login']
-			,'OutSum' => $sum
-			,'InvId' => $id
-			,'Desc' => 'Payment #'.$id
-			,'SignatureValue' => md5($this->config['login'].':'.$sum.':'.$id.':'.$this->config['pass1'])
-			,'IncCurrLabel' => $this->config['currency']
-			,'Culture' => $this->config['culture']
-		);
+	public function getSessionId($order) {
 
-		$link = $this->config['checkoutUrl'] .'?'. http_build_query($request);
+		if($sessionId = $this->get_session_id($order)) {	
+			return $sessionId;
+		} else {	  
+			$data = array(
+				'OrderId'      => $order->get('id'),
+				'Amount'       => number_format($order->get('cost'), 2, '.', '') * 100,
+				'Type'         => 'Pay',
+				'CustomParams' => array(
+					'Backurl' => $this->config['paymentUrl'],
+					//'successUrl' => $this->config['successId'],
+					//'failUrl' => $this->config['failId'],
+					//'Email' => $this->config['paymentUrl']
+				),
+			);
+
+			$request = $this->api->init( $data );
+			$session = new MapSession( $request );
+
+			if ( $session->isSuccess() ) { 				
+				$Address = $order->getOne('Address');
+				$Address->set('metro',$session->getSessionGUID() );
+				$Address->save(); 
+				return $session->getSessionGUID();
+			}		
+		}
+
+		$this->paymentError('mspMap - Ошибка создания сессии:',  $session->getErrCode()); 
+		return null;
+ 
+	}
+
+
+	public function getPaymentLink($sessionId) {
+		$session_id = $this->get_session_id( $order ); 
+		$link = $this->config['gateway'].'/createPayment'.'?'. http_build_query(['SessionID' => $sessionId]);
 		return $link;
 	}
 
 
 	/* @inheritdoc} */
 	public function receive(msOrder $order, $params = array()) {
-		$id = $order->get('id');
-		$crc = strtoupper($_REQUEST['SignatureValue']);
-		// Production
-		$sum1 = number_format($order->get('cost'), 6, '.', '');
-		$crc1 = strtoupper(md5($sum1.':'.$id.':'.$this->config['pass2']));
-		// Test
-		$sum2 = number_format($order->get('cost'), 2, '.', '');
-		$crc2 = strtoupper(md5($sum2.':'.$id.':'.$this->config['pass2']));
 
-		if ($crc == $crc1 || $crc == $crc2) {
+		$id = $order->get('id'); 
+
+		if ($params['result'] == 'success') {
 			/* @var miniShop2 $miniShop2 */
 			$miniShop2 = $this->modx->getService('miniShop2');
 			@$this->modx->context->key = 'mgr';
@@ -73,7 +101,7 @@ class mspMap extends msPaymentHandler implements msPaymentInterface {
 			exit('OK');
 		}
 		else {
-			$this->paymentError('Err: wrong signature.', $params);
+			$this->paymentError('Err: wrong response.', $params);
 		}
 	}
 
@@ -84,4 +112,11 @@ class mspMap extends msPaymentHandler implements msPaymentInterface {
 
 		die('ERR: ' . $text);
 	}
+
+
+	private function get_session_id( msOrder $order ) { 		
+		$Address = $order->getOne('Address');		
+		return $Address->get('metro');
+	}
+
 }
