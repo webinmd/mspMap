@@ -16,10 +16,6 @@ $tmp = array(
 		'xtype' => 'textfield',
 		'value' => ''
 	),
-	'pass' => array(
-		'xtype' => 'text-password',
-		'value' => ''
-	),
 	'success_id' => array(
 		'xtype' => 'numberfield',
 		'value' => 0

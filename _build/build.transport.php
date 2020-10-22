@@ -25,7 +25,6 @@ $sources = array(
 		'components/minishop2/payment/mspmap.php'
 	),
 	'source_core' => array(
-		'components/minishop2/custom/payment/lib/mspmap/MapPaymentAPI.php',
 		'components/minishop2/custom/payment/mspmap.class.php',
 		'components/minishop2/lexicon/en/msp.map.inc.php',
 		'components/minishop2/lexicon/ru/msp.map.inc.php'
