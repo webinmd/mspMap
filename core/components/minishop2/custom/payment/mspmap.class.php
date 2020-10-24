@@ -42,10 +42,14 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 	/* @inheritdoc} */
 	public function send(msOrder $order) 
 	{
-
-		$sessionId = $this->getSessionId($order);
-		$link = $this->getPaymentLink($sessionId);
-		return $this->success('', array('redirect' => $link));
+		
+		if($sessionId = $this->getSessionId($order)) {
+			$link = $this->getPaymentLink($sessionId);
+			return $this->success('', array('redirect' => $link));
+		} else {		
+			$this->paymentError('mspMap - Ошибка получения сессии:'); 
+			return null;
+		}
 
 	}
 
@@ -90,8 +94,7 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 
 
 	public function getPaymentLink($sessionId) 
-	{
-		$session_id = $this->get_session_id( $order ); 
+	{ 
 		$link = $this->config['gateway'].'/createPayment'.'?'. http_build_query(['SessionID' => $sessionId]);
 		return $link;
 	}
@@ -159,6 +162,5 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 
         return $result;
 	}
-	
 
 }
