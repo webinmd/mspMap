@@ -4,6 +4,12 @@ if (!class_exists('msPaymentInterface')) {
 	require_once dirname(dirname(dirname(__FILE__))) . '/model/minishop2/mspaymenthandler.class.php';
 }
 
+
+/////////////////////////////////////
+require_once("vendor/autoload.php"); 
+use GuzzleHttp\Client;
+/////////////////////////////////////
+
 class mspMap extends msPaymentHandler implements msPaymentInterface 
 {
 	public $config;
@@ -12,6 +18,7 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
     private $sessionGUID;
     private $success;
     private $errCode;
+    private $client;
 
 	function __construct(xPDOObject $object, $config = array()) 
 	{
@@ -25,16 +32,19 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 			 'paymentUrl' => $paymentUrl
 			,'gateway' => $this->modx->getOption('ms2_payment_mspmap_gateway_url')
 			,'key' => $this->modx->getOption('ms2_payment_mspmap_key') 
-			,'test' => $this->modx->getOption('ms2_payment_mspmap_pass') 
+			,'pass' => $this->modx->getOption('ms2_payment_mspmap_pass') 
+			,'test' => $this->modx->getOption('ms2_payment_mspmap_test_mode') 
 			,'failId' => $this->modx->getOption('ms2_payment_mspmap_failure_id') 
 			,'successId' => $this->modx->getOption('ms2_payment_mspmap_success_id') 
 		), $config); 
 
-		$this->api = new MapPaymentAPI(
-			$this->config['gateway'],
-			$this->config['key'], 
-			$this->config['test']
-		);
+		$options = [
+			'base_url' 	=> $this->config['gateway'],
+			'debug'  	=> false,
+			'verify' 	=> false
+		]; 
+
+		$this->client = new Client($options);
 
 	}
 
@@ -54,40 +64,46 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 	}
 
 
+
 	public function getSessionId($order) 
 	{
 
 		if($sessionId = $this->get_session_id($order)) {	
+
 			return $sessionId;
-		} else {	  
-			$data = array(
-				'merchant_order_id' => $order->get('id'),
-				'amount'       		=> number_format($order->get('cost'), 2, '.', '') * 100,
-				'type'         		=> 'pay',
-				'custom_params' 	=> array(
-					'successUrl' 	=> $this->config['paymentUrl'],
-					'failUrl' 		=> $this->config['paymentUrl']
-					//'successUrl' => $this->config['successId'],
-					//'failUrl' => $this->config['failId'],
-					//'Email' => $this->config['paymentUrl']
-				),
-			);
 
-			$request = $this->request( $data, $this->config['gateway'].'/Init' );
-			
-			$this->sessionGUID = $request['SessionGUID'];
-			$this->success = $request['Success'];
-			$this->errCode = $request['ErrCode'];
+		} else {	
+ 
+			$data = [
+				'Key' 			=>  $this->config['key'],
+				'Password' 		=>  $this->config['pass'],
+				'OrderId' 		=> $order->get('id'),
+				'Amount'       	=> number_format($order->get('cost'), 2, '.', '') * 100,
+				'Type'         	=> 'Pay',
+				'CustomParams' 	=> "successUrl=".$this->config['paymentUrl'].";successUrl=".$this->config['paymentUrl']."Email=89poilo@gmail.com"
+			];
 
-			if ( $this->success && empty($this->errCode) ) { 				
+			$request = $this->client->request('POST',  $this->config['gateway'].'Init', [	
+				'headers' => [ 
+					'Content-Type' => 'application/x-www-form-urlencoded'
+				],
+				'form_params' => $data
+			]);
+
+			$response = $request->getBody()->getContents();
+			$responseArray = json_decode($response, true);
+
+			if($responseArray['Success']) {
+				$sessionGUID = $responseArray['SessionGUID']; 			
 				$Address = $order->getOne('Address');
-				$Address->set('metro',$this->sessionGUID );
+				$Address->set('metro',$sessionGUID );
 				$Address->save(); 
-				return $this->sessionGUID;
-			}		
+				return $sessionGUID;			 
+			} 
+				
 		}
 
-		$this->paymentError('mspMap - Ошибка создания сессии:', $this->errCode); 
+		$this->paymentError('mspMap - Ошибка создания сессии:'); 
 		return null;
  
 	}
@@ -95,7 +111,7 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 
 	public function getPaymentLink($sessionId) 
 	{ 
-		$link = $this->config['gateway'].'/createPayment'.'?'. http_build_query(['SessionID' => $sessionId]);
+		$link = $this->config['gateway'].'createPayment'.'?'. http_build_query(['SessionID' => $sessionId]);
 		return $link;
 	}
 
@@ -134,33 +150,5 @@ class mspMap extends msPaymentHandler implements msPaymentInterface
 		return $Address->get('metro');
 	}
 
-
-	public function request($params = array(), $url)
-    {
-
-        $request = http_build_query($arams);
-        $curlOptions = array(
-            CURLOPT_URL => $url,
-            CURLOPT_VERBOSE => 1, 
-            CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_POST => 1,
-            CURLOPT_POSTFIELDS => $request,
-        );
-
-        $ch = curl_init();
-        curl_setopt_array($ch, $curlOptions);
-
-        $response = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $result = curl_error($ch);
-        } else {
-            $result = array();
-            parse_str($response, $result);
-        }
-
-        curl_close($ch);
-
-        return $result;
-	}
 
 }
